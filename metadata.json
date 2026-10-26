@@ -1,0 +1,10 @@
+{
+  "name": "Voice Input Helper",
+  "description": "Buffer dialog for Myna STT to fix focus issues and allow text editing",
+  "uuid": "voice-input-helper@diserere.github.com",
+  "shell-version": [
+    "50"
+  ],
+  "url": "https://github.com/diserere",
+  "version": "0.0.1"
+}
