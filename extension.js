@@ -170,8 +170,6 @@ class VoiceInputModal extends St.Widget {
             line_wrap_mode: Pango.WrapMode.WORD_CHAR,
             cursor_visible: true,
             reactive: true,
-            track_hover: true,
-            style_class: 'voice-input-text',
             x_expand: true,
         });
         this._text.connect('key-press-event', (self, event) => {
