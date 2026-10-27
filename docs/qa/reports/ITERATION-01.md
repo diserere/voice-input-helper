@@ -1,21 +1,21 @@
 # Отчёт о тестировании — итерация 1: прототип многострочного поля ввода (Clutter.Text)
 
-Дата: YYYY-MM-DD
+Дата: 2026-10-27 20:32:10
 Среда: GNOME Shell 50.1, devkit-сессия (`dbus-run-session -- gnome-shell --devkit`), Ubuntu 26.04
 Расширение: voice-input-helper@diserere.github.com
-Тестировал: ______
+Тестировал: Diserere
 
 > Версия, на которой проводилось тестирование, определяется коммитом, в котором лежит отчёт — отдельное поле «Коммит» не нужно.
 
 ## Чек-лист (US-1…US-6 + стабильность)
 
-- [ ] **US-1. Иконка на панели.** После включения расширения в верхней панели появилась иконка `edit-paste-symbolic`.
+- [x] **US-1. Иконка на панели.** После включения расширения в верхней панели появилась иконка `edit-paste-symbolic`.
     - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
-- [ ] **US-1. Открытие по клику.** Клик по иконке → окно ввода открывается сразу, без промежуточного меню.
-    - [ ] Комментарий: 
-    - [ ] Обнаружены дефекты: **___**
-        - [ ] Блокирующий дефект
+- [x] **US-1. Открытие по клику.** Клик по иконке → окно ввода открывается сразу, без промежуточного меню.
+    - [ ] Комментарий: Сделано три клика. Смотри подробности в логе.
+    - [x] Обнаружены дефекты: ** После клика по иконке не происходит никаких видимых действий.**
+        - [x] Блокирующий дефект
 - [ ] **US-1. Повторный клик.** Повторный клик при открытом окне не создаёт второй экземпляр; фокус возвращается в поле, текст сохраняется, окно не закрывается и не затемняется заново.
     - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
@@ -59,7 +59,7 @@
 - [ ] **Стабильность.** В devkit-журнале нет ошибок расширения (`JS ERROR`, `Disabling extension`, `Failed to load`).
     - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
-- [ ] **Отключение.** При `gnome-extensions disable ...` индикатор исчезает, окно закрывается, ошибок в журнале нет.
+- [x] **Отключение.** При `gnome-extensions disable ...` индикатор исчезает, окно закрывается, ошибок в журнале нет.
     - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
 
@@ -81,14 +81,29 @@
 Сценарий: ______
 Журнал: `dbus-run-session -- gnome-shell --devkit 2>&1 | tee .tmp/devkit.log | grep -iE 'voice-input-helper|diserere\.github\.com|JS ERROR'` (полный лог — `.tmp/devkit.log`).
 
-```
-<вставить сюда отфильтрованную выборку лога>
+```log
+diserere@diseredmibook:~/Projects/github/voice-input-helper$ VHI_QA_TEXT=1 ./run-gnome-shell-devkit.sh 
+(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:43.802: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
+_openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
+enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
+(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:48.310: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
+_openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
+enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
+(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:59.494: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
+_openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
+enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
 ```
 
 ## Итог
 
 Обнаруженные дефекты:
-- ______ | Приоритет: ______
+- Нет реакции при клике на иконку. | Приоритет: Высокий.
 - ______ | Приоритет: ______
 
 Заключение: ПРОЙДЕНО / НЕ ПРОЙДЕНО (нужное оставить)
