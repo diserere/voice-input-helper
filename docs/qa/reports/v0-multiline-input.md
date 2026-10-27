@@ -1,20 +1,35 @@
-# Отчёт о тестировании — итерация 1: прототип многострочного поля ввода (Clutter.Text)
+# Отчёт о тестировании — V0: многострочное поле ввода (ветка feat/multiline-input)
 
-Дата: 2026-10-27 20:32:10
+Дата: 2026-10-27 20:32:10 (обновляется при каждом тестировании)
 Среда: GNOME Shell 50.1, devkit-сессия (`dbus-run-session -- gnome-shell --devkit`), Ubuntu 26.04
 Расширение: voice-input-helper@diserere.github.com
-Тестировал: Diserere
 
 > Версия, на которой проводилось тестирование, определяется коммитом, в котором лежит отчёт — отдельное поле «Коммит» не нужно.
+
+## Что изменилось (история)
+
+> Журнал изменений по снапшотам: каждая запись — что изменилось с прошлого прогона. Записи идут последовательно, сверху вниз (сверху — самая ранняя, снизу — самая свежая). Раздел ведёт агент; данные тестирования вносит пользователь.
+
+### 2026-10-27 — итерация 1: первый прогон
+- Прототип: окно, иконка `edit-paste-symbolic`, многострочное поле `Clutter.Text`, Enter/Ctrl+Enter/Esc, копирование, QA-хук.
+- Найден **блокирующий дефект**: окно не открывается по клику на иконку (`Clutter.InputPurpose.FREE_FORM` отсутствует в gjs/Clutter 18) → фикс в итерации 2.
+
+### 2026-10-27 — итерация 2: фикс блокера input_purpose
+- Убрана строка `input_purpose: Clutter.InputPurpose.FREE_FORM` (в gjs/Clutter 18 отсутствует).
+- При повторном тестировании выявлен следующий **блокирующий дефект**: `Error: No property can_focus on ClutterText` (extension.js:165) → фикс в итерации 3.
+
+### 2026-10-27 — итерация 3: фикс блокера can_focus (ожидает повторного тестирования)
+- Убрано свойство `can_focus: true` из `Clutter.Text` (у ClutterText его нет; фокус ставится через `global.stage.set_key_focus`).
+- Ожидает повторного тестирования в devkit.
 
 ## Чек-лист (US-1…US-6 + стабильность)
 
 - [x] **US-1. Иконка на панели.** После включения расширения в верхней панели появилась иконка `edit-paste-symbolic`.
-    - [ ] Обнаружены дефекты: **___**
+    - [ ] Обнаружены дефекты: **___** 
         - [ ] Блокирующий дефект
 - [x] **US-1. Открытие по клику.** Клик по иконке → окно ввода открывается сразу, без промежуточного меню.
     - [ ] Комментарий: Сделано три клика. Смотри подробности в логе.
-    - [x] Обнаружены дефекты: ** После клика по иконке не происходит никаких видимых действий.**
+    - [x] Обнаружены дефекты: **После клика по иконке не происходит никаких видимых действий.**
         - [x] Блокирующий дефект
 - [ ] **US-1. Повторный клик.** Повторный клик при открытом окне не создаёт второй экземпляр; фокус возвращается в поле, текст сохраняется, окно не закрывается и не затемняется заново.
     - [ ] Обнаружены дефекты: **___**
@@ -38,7 +53,7 @@
     - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
 - [ ] **US-2. Диктовка Myna.** Активация голосового ввода Myna вводит распознанный текст в поле (без ошибки «no text input focused»). *Проверяется только в основной сессии; в devkit — «требует проверки в основной сессии», не дефект.*
-    - [ ] Обнаружены дефекты: **___** 
+    - [ ] Обнаружены дефекты: **___**
         - [ ] Блокирующий дефект
 - [ ] **US-3. Копировать и закрыть.** «Копировать» копирует весь текст (включая переводы строк) в буфер обмена, показывает уведомление, закрывает окно; фокус возвращается ранее активному окну.
     - [ ] Комментарий: 
@@ -78,23 +93,23 @@
 
 ## Логи тестового прогона (devkit-сессия)
 
-Сценарий: ______
+Сценарий: итерация 1 — клик по иконке (3 раза) при включённом расширении.
 Журнал: `dbus-run-session -- gnome-shell --devkit 2>&1 | tee .tmp/devkit.log | grep -iE 'voice-input-helper|diserere\.github\.com|JS ERROR'` (полный лог — `.tmp/devkit.log`).
 
 ```log
-diserere@diseredmibook:~/Projects/github/voice-input-helper$ VHI_QA_TEXT=1 ./run-gnome-shell-devkit.sh 
-(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:43.802: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
-_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+diserere@diseredmibook:~/Projects/github/voice-input-helper$ VHI_QA_TEXT=1 ./run-gnome-shell-devkit.sh
+(gnome-shell:1970096): Gjs-CRITICAL **: 22:57:48.316: JS ERROR: Error: No property track_hover on ClutterText
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:165:22
 VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
 _openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
 enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
-(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:48.310: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
-_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+(gnome-shell:1970096): Gjs-CRITICAL **: 22:57:50.350: JS ERROR: Error: No property track_hover on ClutterText
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:165:22
 VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
 _openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
 enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
-(gnome-shell:1776690): Gjs-CRITICAL **: 20:29:59.494: JS ERROR: TypeError: can't access property "FREE_FORM", (intermediate value).InputPurpose is undefined
-_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:175:13
+(gnome-shell:1970096): Gjs-CRITICAL **: 22:57:51.370: JS ERROR: Error: No property track_hover on ClutterText
+_init@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:165:22
 VoiceInputModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:95:1
 _openModal@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:77:27
 enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com/extension.js:54:18
@@ -106,6 +121,6 @@ enable/<@file:///home/diserere/.local/share/gnome-shell/extensions/voice-input-h
 - Нет реакции при клике на иконку. | Приоритет: Высокий.
 - ______ | Приоритет: ______
 
-Заключение: ПРОЙДЕНО / НЕ ПРОЙДЕНО (нужное оставить)
+Заключение: НЕ ПРОЙДЕНО (нужное оставить)
 
 Замечания: ______

@@ -169,10 +169,8 @@ class VoiceInputModal extends St.Widget {
             line_wrap: true,
             line_wrap_mode: Pango.WrapMode.WORD_CHAR,
             cursor_visible: true,
-            can_focus: true,
             reactive: true,
             track_hover: true,
-            input_purpose: Clutter.InputPurpose.FREE_FORM,
             style_class: 'voice-input-text',
             x_expand: true,
         });
