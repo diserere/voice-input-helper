@@ -95,12 +95,11 @@ const VoiceInputModal = GObject.registerClass(
 class VoiceInputModal extends St.Widget {
     _init() {
         // Контейнер по размеру экрана: всё, что вне диалога, — тёмный фон.
+        // НЕ reactive: иначе перехватывал бы все клики (включая панель) —
+        // панель (US-1) и клик по фону работают через подложку/диалог ниже.
         super._init({
             style_class: 'voice-input-modal-container',
             layout_manager: new Clutter.BinLayout(),
-            reactive: true,
-            can_focus: true,
-            track_hover: true,
         });
 
         this._grab = null;
@@ -119,6 +118,7 @@ class VoiceInputModal extends St.Widget {
             y_expand: true,
             y_align: Clutter.ActorAlign.START,
         });
+        // Позиционируем подложку ниже панели (панель остаётся доступной).
         this._bg.add_constraint(new Clutter.BindConstraint({
             source: Main.panel,
             coordinate: Clutter.BindCoordinate.Y,
@@ -182,16 +182,6 @@ class VoiceInputModal extends St.Widget {
             return Clutter.EVENT_PROPAGATE;
         });
         this._box.add_child(this._text);
-
-        // Диагностика прототипа: логируем координаты курсора при изменении
-        // (для будущего автоскролла); в проде убрать.
-        this._text.connect('cursor-changed', () => {
-            if (this._text.cursor_visible) {
-                const [ok, x, y, h] = this._text.position_to_coords(this._text.cursor_position);
-                if (ok)
-                    log(`voice-input-helper: cursor pos=${this._text.cursor_position} x=${x} y=${y} h=${h}`);
-            }
-        });
 
         // QA-хук прототипа: длинный текст при первом открытии (автоперенос).
         // Активируется переменной VHI_QA_TEXT=1 при запуске devkit. Удалить в финале.
