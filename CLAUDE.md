@@ -26,6 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Установка расширения**: `./install.sh` — создаёт симлинк `~/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com` → текущий каталог. Если цель уже существует, расширение не переустанавливает. Флаг `-l` выводит список установленных расширений.
 - **Запуск в изолированном окружении GNOME Shell** (devkit): `./run-gnome-shell-devkit.sh` — `dbus-run-session -- gnome-shell --devkit`. Полный лог пишется в `.tmp/devkit.log`, на экран выводятся только строки, совпадающие с `voice-input-helper|diserere\.github\.com|JS ERROR`. Сессия живёт до ручного завершения.
+- **QA-процесс и чек-лист**: см. [docs/qa/](docs/qa/) (`PROCESS.md` — как тестировать, `CHECKLIST.md` — чек-лист, `reports/` — отчёты). Строгий порядок: коммит = протестированный код + заполненный отчёт одним коммитом.
 
 ## Архитектура
 
