@@ -16,12 +16,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import GLib from 'gi://GLib';
-import Shell from 'gi://Shell';
 
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -41,8 +41,11 @@ export default class VoiceInputHelperExtension extends Extension {
         // отключает встроенный клик-жест и создаёт PopupDummyMenu.
         this._indicator = new PanelMenu.Button(0.0, this.metadata.name, true);
 
+        // Кастомная иконка из каталога icons/ расширения: встроенный набор Shell
+        // (gnome-shell-icons.gresource) не содержит подходящей панельной иконки
+        // для голосового ввода.
         this._icon = new St.Icon({
-            icon_name: 'edit-paste-symbolic',
+            gicon: Gio.icon_new_for_string(`${this.path}/icons/voice-input-helper-icon.svg`),
             style_class: 'system-status-icon',
         });
         this._indicator.add_child(this._icon);
@@ -83,47 +86,41 @@ export default class VoiceInputHelperExtension extends Extension {
  * Модальное окно ввода: затемняющая подложка под панелью и центрированный
  * по монитору диалог с многострочным полем ввода (Clutter.Text) и кнопками.
  *
- * Затемнение НЕ перекрывает верхнюю панель (US-1: панель доступна), поэтому
- * подложка сдвинута вниз на высоту панели; клик по подложке закрывает окно
- * (US-4), клик по панели — нет.
+ * Затемнение покрывает область под панелью (workArea); клик по подложке
+ * закрывает окно (US-4), клик по панели — нет (панель доступна, US-1).
  *
- * Модальность через Main.pushModal(actor, {actionMode}) — grab снимается
- * автоматически при destroy актора; Main.popModal(grab) сам возвращает фокус
- * ранее активному окну (US-3).
+ * Без pushModal: окно показывается поверх (Main.uiGroup), панель остаётся
+ * кликабельной; фокус предыдущего актора сохраняется и возвращается вручную
+ * (вместо popModal).
  */
 const VoiceInputModal = GObject.registerClass(
 class VoiceInputModal extends St.Widget {
     _init() {
         // Контейнер по размеру экрана: всё, что вне диалога, — тёмный фон.
+        // НЕ reactive: иначе перехватывал бы все клики (включая панель) —
+        // панель (US-1) и клик по фону работают через подложку/диалог ниже.
         super._init({
             style_class: 'voice-input-modal-container',
             layout_manager: new Clutter.BinLayout(),
-            reactive: true,
-            can_focus: true,
-            track_hover: true,
         });
 
-        this._grab = null;
+        this._prevFocus = null;
 
         // Контейнер растягивается на монитор (MonitorConstraint задаёт размер).
         this._monitorConstraint = new Layout.MonitorConstraint();
         this._monitorConstraint.index = global.display.get_current_monitor();
         this.add_constraint(this._monitorConstraint);
 
-        // Тёмная подложка. Чтобы панель осталась доступной (US-1), её нижняя
-        // граница сдвинута на высоту панели; клик по ней закрывает окно (US-4).
+        // Тёмная подложка. Покрывает область под панелью (workArea = монитор
+        // минус панель/чанж), реактивна — клик по ней закрывает окно (US-4).
+        // Панель остаётся доступной (US-1): подложка её не перекрывает.
         this._bg = new St.Widget({
             style_class: 'voice-input-modal-bg',
             reactive: true,
-            x_expand: true,
-            y_expand: true,
-            y_align: Clutter.ActorAlign.START,
         });
-        this._bg.add_constraint(new Clutter.BindConstraint({
-            source: Main.panel,
-            coordinate: Clutter.BindCoordinate.Y,
-            offset: Main.panel.height,
-        }));
+        const bgMon = new Layout.MonitorConstraint({workArea: true});
+        bgMon.index = global.display.get_current_monitor();
+        this._bg.add_constraint(bgMon);
         this._bg.connect('button-press-event', () => this._close());
         this.add_child(this._bg);
 
@@ -169,11 +166,7 @@ class VoiceInputModal extends St.Widget {
             line_wrap: true,
             line_wrap_mode: Pango.WrapMode.WORD_CHAR,
             cursor_visible: true,
-            can_focus: true,
             reactive: true,
-            track_hover: true,
-            input_purpose: Clutter.InputPurpose.FREE_FORM,
-            style_class: 'voice-input-text',
             x_expand: true,
         });
         this._text.connect('key-press-event', (self, event) => {
@@ -186,16 +179,6 @@ class VoiceInputModal extends St.Widget {
             return Clutter.EVENT_PROPAGATE;
         });
         this._box.add_child(this._text);
-
-        // Диагностика прототипа: логируем координаты курсора при изменении
-        // (для будущего автоскролла); в проде убрать.
-        this._text.connect('cursor-changed', () => {
-            if (this._text.cursor_visible) {
-                const [ok, x, y, h] = this._text.position_to_coords(this._text.cursor_position);
-                if (ok)
-                    log(`voice-input-helper: cursor pos=${this._text.cursor_position} x=${x} y=${y} h=${h}`);
-            }
-        });
 
         // QA-хук прототипа: длинный текст при первом открытии (автоперенос).
         // Активируется переменной VHI_QA_TEXT=1 при запуске devkit. Удалить в финале.
@@ -244,17 +227,19 @@ class VoiceInputModal extends St.Widget {
 
     open() {
         if (this.visible) {
-            // Уже открыто: не берём новый grab, просто возвращаем фокус.
+            // Уже открыто: просто возвращаем фокус (без grab-перехвата).
             this._ensureFocus();
             return;
         }
 
+        // Без pushModal: вместо актор-граба (который «глушил» панель) просто
+        // показываем окно поверх (Main.uiGroup) и сами сохраняем фокус.
+        // Панель остаётся кликабельной (US-1), клик по фону закрывает (US-4).
+        this._prevFocus = global.stage.get_key_focus();
         this.show();
-        this._grab = Main.pushModal(this, {
-            actionMode: Shell.ActionMode.NORMAL,
-        });
 
-        // Фокус в поле ТОЛЬКО после show() — актор уже смонтирован (mapped).
+        // Фокус в поле ТОЛЬКО после show() — актор уже смонтирован (mapped);
+        // иначе IBus-мост у Myna получит «commit REFUSED: focus lost».
         this._ensureFocus();
 
         // QA-хук прототипа: вставить длинный текст при включённом VHI_QA_TEXT.
@@ -276,21 +261,16 @@ class VoiceInputModal extends St.Widget {
     }
 
     _close() {
-        if (this._grab) {
-            try {
-                Main.popModal(this._grab);
-            } catch (err) {
-                console.warn(`voice-input-helper: popModal: ${err}`);
-            }
-            this._grab = null;
-        }
+        // Фокус возвращаем ранее активному актору (что делал popModal).
+        if (this._prevFocus)
+            global.stage.set_key_focus(this._prevFocus);
+        this._prevFocus = null;
         this.hide();
     }
 
     destroy() {
-        // Grab снимается автоматически при разрушении актора;
-        // popModal вручную не вызываем во избежание "incorrect pop".
-        this._grab = null;
+        // Никакого grab — ничего снимать не нужно.
+        this._prevFocus = null;
         super.destroy();
     }
 });
