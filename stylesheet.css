@@ -1,1 +1,45 @@
-/* Add your custom extension styling here */
+/* Voice Input Helper — стили модального окна ввода */
+
+/* Контейнер окна (занимает монитор; подложка и диалог внутри). */
+.voice-input-modal-container {
+    background-color: transparent;
+}
+
+/* Затемняющая подложка. Полупрозрачный чёрный; покрывает область под
+   панелью (панель остаётся доступной — US-1). */
+.voice-input-modal-bg {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Диалог: карточка с фоном, скруглением и лёгкой тенью. */
+.voice-input-modal-dialog {
+    background-color: #2b2b2b;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Внутренняя колонка диалога: отступы. */
+.voice-input-modal-box {
+    padding: 18px;
+    spacing: 12px;
+}
+
+/* Заголовок окна. */
+.voice-input-modal-title {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+/* Многострочное поле ввода (Clutter.Text). Крупный шрифт, фон, рамка. */
+.voice-input-text {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 1.1em;
+    selection-background-color: rgba(76, 148, 255, 0.5);
+}
+
+/* Кнопки — стандартный вид St.Button для этого окружения. */
+.voice-input-modal-buttons {
+    spacing: 8px;
+}
