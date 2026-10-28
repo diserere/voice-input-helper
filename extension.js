@@ -16,6 +16,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -40,8 +41,11 @@ export default class VoiceInputHelperExtension extends Extension {
         // отключает встроенный клик-жест и создаёт PopupDummyMenu.
         this._indicator = new PanelMenu.Button(0.0, this.metadata.name, true);
 
+        // Кастомная иконка из каталога icons/ расширения: встроенный набор Shell
+        // (gnome-shell-icons.gresource) не содержит подходящей панельной иконки
+        // для голосового ввода.
         this._icon = new St.Icon({
-            icon_name: 'edit-paste-symbolic',
+            gicon: Gio.icon_new_for_string(`${this.path}/icons/voice-input-helper-icon.svg`),
             style_class: 'system-status-icon',
         });
         this._indicator.add_child(this._icon);

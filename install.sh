@@ -12,27 +12,62 @@ show_usage() {
     echo "  -h           показать эту справку"
 }
 
-if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-    show_usage
-    exit 0
-fi
-
-if [ "$1" == "-l" ]; then
-    echo "---"
-    ls --color -Al "${EXTENSIONS_DIR}"
-    exit
-fi
-
-if [ "$1" == "-i" ] || [ "$1" == "--install" ]; then
-    if [ -e "${LINK_NAME}" ]; then
-        echo "Расширение уже установлено: ${LINK_NAME}"
-    else
-        ln -s "${PWD}" ${LINK_NAME} && echo "Расширение успешно установлено."
+# Убедиться, что каталог расширений существует. Нужен всем операциям, кроме
+# справки и ошибок; при отсутствии каталога предлагаем создать его.
+ensure_extensions_dir() {
+    if [ -d "${EXTENSIONS_DIR}" ]; then
+        return 0
     fi
-    exit 0
-fi
+    echo "Каталог расширений не найден: ${EXTENSIONS_DIR}"
+    read -r -p "Создать его? [Y/n]: " REPLY
+    case "${REPLY}" in
+        ""|Y|y|yes|YES|Yes)
+            mkdir -p "${EXTENSIONS_DIR}" || {
+                echo "Ошибка: не удалось создать ${EXTENSIONS_DIR}" >&2
+                exit 1
+            }
+            echo "Создан: ${EXTENSIONS_DIR}"
+            ;;
+        *)
+            echo "Каталог расширений необходим для работы скрипта. Выход."
+            exit 1
+            ;;
+    esac
+}
+
+# Справка (в т.ч. при отсутствии аргументов) и неизвестные аргументы
+# обрабатываются сразу, без обращения к каталогу расширений.
+case "$1" in
+    -h|--help|"")
+        show_usage
+        exit 0
+        ;;
+    -l|--list|-i|--install|-u|--uninstall)
+        # Валидные операции: продолжаем и готовим каталог расширений.
+        ;;
+    *)
+        echo "Неизвестный аргумент: $1" >&2
+        show_usage
+        exit 1
+        ;;
+esac
+
+ensure_extensions_dir
 
 case "$1" in
+    -l|--list)
+        echo "---"
+        ls --color -Al "${EXTENSIONS_DIR}"
+        exit 0
+        ;;
+    -i|--install)
+        if [ -e "${LINK_NAME}" ]; then
+            echo "Расширение уже установлено: ${LINK_NAME}"
+        else
+            ln -s "${PWD}" ${LINK_NAME} && echo "Расширение успешно установлено."
+        fi
+        exit 0
+        ;;
     -u|--uninstall)
         if [ ! -e "${LINK_NAME}" ]; then
             echo "Расширение не установлено: ${LINK_NAME}"
@@ -54,15 +89,5 @@ case "$1" in
         rm "${LINK_NAME}"
         echo "Расширение удалено."
         exit 0
-        ;;
-    "")
-        # Без аргументов — только справка (безопасный дефолт, ничего не делаем).
-        show_usage
-        exit 0
-        ;;
-    *)
-        echo "Неизвестный аргумент: $1" >&2
-        show_usage
-        exit 1
         ;;
 esac
