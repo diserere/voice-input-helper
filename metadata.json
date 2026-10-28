@@ -1,6 +1,6 @@
 {
   "name": "Voice Input Helper",
-  "description": "Buffer dialog for Myna STT to fix focus issues and allow text editing (build 90f867b)",
+  "description": "Buffer dialog for Myna STT to fix focus issues and allow text editing (build ebc92a3)",
   "uuid": "voice-input-helper@diserere.github.com",
   "shell-version": [
     "50"
