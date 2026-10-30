@@ -3,9 +3,9 @@
   <schema id="org.gnome.shell.extensions.voice-input-helper"
           path="/org/gnome/shell/extensions/voice-input-helper/">
     <key name="custom-dialog-style" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Собственное скругление и тень окна</summary>
-      <description>true — свои скругление и тень диалога поверх системных; false — системные из темы (.modal-dialog). Временная опция для A/B-сравнения оформления.</description>
+      <description>true — свои скругление и тень диалога поверх системных; false (по умолчанию) — системные из темы (.modal-dialog).</description>
     </key>
   </schema>
 </schemalist>

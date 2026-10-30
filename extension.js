@@ -144,8 +144,8 @@ class VoiceInputModal extends St.Widget {
             reactive: true,
             can_focus: true,
         });
-        // ВРЕМЕННО: A/B-сравнение оформления диалога (см. stylesheet.css):
-        // настройка custom-dialog-style, переключается на лету из prefs.
+        // Настройка custom-dialog-style: свои скругление и тень вместо
+        // системных (см. stylesheet.css); переключается на лету из prefs.
         this._settings = settings;
         this._settingsId = settings.connect('changed::custom-dialog-style',
             () => this._updateDialogStyle());
@@ -256,43 +256,6 @@ class VoiceInputModal extends St.Widget {
         this._keyFocusId = global.stage.connect('notify::key-focus',
             () => this._onKeyFocusChanged());
 
-        // ВРЕМЕННО: диагностика фокуса при диктовке Myna — удалить до коммита.
-        // Метка времени в мс — журнал даёт только секунды, а события идут
-        // пачкой; DBG-строки фокуса окон — чтобы понять, кто забирает фокус.
-        const dbg = msg => {
-            if (this.visible)
-                console.log(`[voice-input-helper] DBG ${GLib.get_monotonic_time() / 1000 | 0} ${msg}`);
-        };
-        const win = w => w
-            ? `"${w.get_title()}" class=${w.get_wm_class()} type=${w.get_window_type()}`
-            : 'null';
-        this._dbgFocusId = global.stage.connect('notify::key-focus', () => {
-            const focus = global.stage.get_key_focus();
-            dbg(`key-focus → ${focus}; focus-window=${win(global.display.focus_window)}`);
-            if (!focus) {
-                const stack = new Error().stack.split('\n').slice(1, 6).join(' | ');
-                dbg(`key-focus null, JS-стек: ${stack || '(нет — вызов не из JS)'}`);
-            }
-        });
-        this._dbgSignals = [
-            [global.display, global.display.connect('notify::focus-window',
-                () => dbg(`focus-window → ${win(global.display.focus_window)}`))],
-            [global.display, global.display.connect('window-created',
-                (d, w) => dbg(`window-created ${win(w)}`))],
-            [global.window_manager, global.window_manager.connect('map',
-                (wm, a) => dbg(`map ${win(a.get_meta_window())}`))],
-            [global.window_manager, global.window_manager.connect('destroy',
-                (wm, a) => dbg(`destroy ${win(a.get_meta_window())}`))],
-        ];
-        this._entry.hint_actor?.connect('notify::allocation', hint => {
-            const [, y] = hint.get_position();
-            dbg(`hint y=${y} h=${hint.height}, entry h=${this._entry.height}`);
-        });
-        this._text.connect('insert-text', (self, text) => {
-            const focus = global.stage.get_key_focus();
-            dbg(`insert ${JSON.stringify(text)}, focus=${focus === this._text ? 'field' : focus}`);
-        });
-
         // Добавляемся на стадию один раз; показ/скрытие — через open()/close().
         Main.uiGroup.add_child(this);
         this.hide();
@@ -389,10 +352,8 @@ class VoiceInputModal extends St.Widget {
         if (!this._restoreFocusId) {
             this._restoreFocusId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                 this._restoreFocusId = 0;
-                if (this.visible) {
-                    console.log('[voice-input-helper] DBG фокус возвращён в поле'); // ВРЕМЕННО
+                if (this.visible)
                     this._ensureFocus();
-                }
                 return GLib.SOURCE_REMOVE;
             });
         }
@@ -416,8 +377,6 @@ class VoiceInputModal extends St.Widget {
         global.stage.disconnect(this._keyFocusId);
         if (this._restoreFocusId)
             GLib.source_remove(this._restoreFocusId);
-        global.stage.disconnect(this._dbgFocusId); // ВРЕМЕННО: диагностика
-        this._dbgSignals.forEach(([obj, id]) => obj.disconnect(id)); // ВРЕМЕННО
         this._settings.disconnect(this._settingsId);
         this._prevFocus = null;
         super.destroy();

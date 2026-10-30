@@ -39,16 +39,14 @@ export default class VoiceInputHelperPreferences extends ExtensionPreferences {
         });
         window.add(page);
 
-        // Временная группа: A/B-сравнение оформления диалога (QA v0.2).
         const group = new Adw.PreferencesGroup({
             title: _('Окно ввода'),
-            description: _('Временная настройка для сравнения вариантов оформления.'),
         });
         page.add(group);
 
         const customStyle = new Adw.SwitchRow({
             title: _('Собственное скругление и тень'),
-            subtitle: _('Выключено — системные из темы оформления'),
+            subtitle: _('Выключено — как у системных диалогов'),
         });
         group.add(customStyle);
         window._settings.bind('custom-dialog-style', customStyle, 'active',
