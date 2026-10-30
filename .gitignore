@@ -5,3 +5,4 @@
 .tmp/
 *.bak
 .vscode/
+schemas/gschemas.compiled

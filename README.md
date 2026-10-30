@@ -21,7 +21,7 @@
 ## Установка
 
 ```bash
-./install.sh -i  # установить (создаёт симлинк в ~/.local/share/gnome-shell/extensions)
+./install.sh -i  # установить (симлинк в ~/.local/share/gnome-shell/extensions + компиляция схемы настроек)
 ./install.sh -u  # удалить расширение (деинсталляция, с подтверждением)
 ./install.sh -n  # вывести имя (UUID) расширения
 ./install.sh     # без аргументов — только справка

@@ -6,7 +6,7 @@ LINK_NAME="${EXTENSIONS_DIR}/${UUID}"
 
 show_usage() {
     echo "Использование: ${0##*/} [-i] [-u] [-l] [-n] [-h]"
-    echo "  -i           установить это расширение"
+    echo "  -i           установить это расширение (и скомпилировать схему настроек)"
     echo "  -u           удалить (деинсталлировать) это расширение"
     echo "  -l           вывести список установленных расширений"
     echo "  -n           вывести имя (UUID) расширения из metadata.json"
@@ -34,6 +34,17 @@ ensure_extensions_dir() {
             exit 1
             ;;
     esac
+}
+
+# Скомпилировать GSettings-схему расширения (schemas/gschemas.compiled):
+# без неё getSettings() в расширении и в окне настроек падает. Нужна и при
+# повторной установке — после изменения схемы.
+compile_schemas() {
+    glib-compile-schemas --strict "${PWD}/schemas" || {
+        echo "Ошибка: не удалось скомпилировать схему настроек (schemas/)" >&2
+        exit 1
+    }
+    echo "Схема настроек скомпилирована."
 }
 
 # Справка (в т.ч. при отсутствии аргументов) и неизвестные аргументы
@@ -66,6 +77,7 @@ case "$1" in
         exit 0
         ;;
     -i|--install)
+        compile_schemas
         if [ -e "${LINK_NAME}" ]; then
             echo "Расширение уже установлено: ${LINK_NAME}"
         else
