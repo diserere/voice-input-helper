@@ -88,6 +88,10 @@ export default class VoiceInputHelperExtension extends Extension {
 // Минимальная высота поля ввода, в строках (US-7).
 const MIN_LINES = 4;
 
+// Сколько после закрытия окна сброс фокуса считается побочным эффектом
+// этого закрытия (а не действием пользователя), мкс. См. _onKeyFocusChanged.
+const FOCUS_RESTORE_WINDOW_US = 300 * 1000;
+
 /**
  * Модальное окно ввода: затемняющая подложка под панелью и центрированный
  * по монитору диалог с многострочным полем ввода (St.Entry) и кнопками.
@@ -238,6 +242,20 @@ class VoiceInputModal extends St.Widget {
         this._buttonBox.add_child(this._makeButton(_('Очистить'), () => this._clear()));
         this._buttonBox.add_child(this._makeButton(_('Закрыть'), () => this._close()));
 
+        // Защита фокуса при диктовке (US-2). Myna на конце фразы закрывает
+        // своё окно-индикатор; на закрытие любого окна DING (иконки рабочего
+        // стола) активирует верхнее окно приложения — фокус уходит из поля.
+        // Запоминаем момент закрытия окна, пока фокус в поле, и если сразу
+        // за ним фокус сбросился — возвращаем его (см. _onKeyFocusChanged).
+        this._windowClosedAt = 0;
+        this._restoreFocusId = 0;
+        this._wmDestroyId = global.window_manager.connect('destroy', () => {
+            if (this.visible && global.stage.get_key_focus() === this._text)
+                this._windowClosedAt = GLib.get_monotonic_time();
+        });
+        this._keyFocusId = global.stage.connect('notify::key-focus',
+            () => this._onKeyFocusChanged());
+
         // ВРЕМЕННО: диагностика фокуса при диктовке Myna — удалить до коммита.
         // Метка времени в мс — журнал даёт только секунды, а события идут
         // пачкой; DBG-строки фокуса окон — чтобы понять, кто забирает фокус.
@@ -266,6 +284,10 @@ class VoiceInputModal extends St.Widget {
             [global.window_manager, global.window_manager.connect('destroy',
                 (wm, a) => dbg(`destroy ${win(a.get_meta_window())}`))],
         ];
+        this._entry.hint_actor?.connect('notify::allocation', hint => {
+            const [, y] = hint.get_position();
+            dbg(`hint y=${y} h=${hint.height}, entry h=${this._entry.height}`);
+        });
         this._text.connect('insert-text', (self, text) => {
             const focus = global.stage.get_key_focus();
             dbg(`insert ${JSON.stringify(text)}, focus=${focus === this._text ? 'field' : focus}`);
@@ -348,10 +370,32 @@ class VoiceInputModal extends St.Widget {
         const lineHeight = (metrics.get_ascent() + metrics.get_descent()) / Pango.SCALE;
         this._text.min_height = Math.ceil(lineHeight * MIN_LINES);
 
-        // St.Entry центрирует подсказку по вертикали внутри поля; та же
-        // минимальная высота у подсказки — и она стоит вверху, как курсор.
+        // St.Entry центрирует подсказку по вертикали внутри поля по её
+        // natural-высоте; высота подсказки = высоте поля — и она стоит
+        // вверху, как курсор (height задаёт и min-, и natural-высоту).
         if (this._entry.hint_actor)
-            this._entry.hint_actor.min_height = this._text.min_height;
+            this._entry.hint_actor.height = this._text.min_height;
+    }
+
+    _onKeyFocusChanged() {
+        if (!this.visible || global.stage.get_key_focus() !== null)
+            return;
+        // Сброс фокуса не сразу после закрытия окна — это действие
+        // пользователя (клик по другому окну и т.п.), не вмешиваемся (US-4).
+        if (GLib.get_monotonic_time() - this._windowClosedAt > FOCUS_RESTORE_WINDOW_US)
+            return;
+        this._windowClosedAt = 0;
+        // Возвращаем фокус после того, как активация окна завершится.
+        if (!this._restoreFocusId) {
+            this._restoreFocusId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._restoreFocusId = 0;
+                if (this.visible) {
+                    console.log('[voice-input-helper] DBG фокус возвращён в поле'); // ВРЕМЕННО
+                    this._ensureFocus();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     _ensureFocus() {
@@ -368,6 +412,10 @@ class VoiceInputModal extends St.Widget {
 
     destroy() {
         // Никакого grab — ничего снимать не нужно.
+        global.window_manager.disconnect(this._wmDestroyId);
+        global.stage.disconnect(this._keyFocusId);
+        if (this._restoreFocusId)
+            GLib.source_remove(this._restoreFocusId);
         global.stage.disconnect(this._dbgFocusId); // ВРЕМЕННО: диагностика
         this._dbgSignals.forEach(([obj, id]) => obj.disconnect(id)); // ВРЕМЕННО
         this._settings.disconnect(this._settingsId);
