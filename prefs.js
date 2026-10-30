@@ -17,28 +17,39 @@
  */
 
 import Adw from 'gi://Adw';
-import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-const MyPreferencesWidget = GObject.registerClass(
-class MyPreferencesWidget extends Adw.PreferencesGroup {
-    constructor() {
-        super({
-            title: _('Section'),
+/**
+ * Окно настроек Voice Input Helper. Каждая настройка — ключ GSettings
+ * (схема в schemas/), привязанный к виджету через settings.bind: значение
+ * пишется сразу при изменении, а расширение подхватывает его на лету
+ * (сигнал changed::<ключ>), без перезапуска.
+ */
+export default class VoiceInputHelperPreferences extends ExtensionPreferences {
+    fillPreferencesWindow(window) {
+        // Держим ссылку на настройки, пока открыто окно: иначе объект
+        // соберёт GC и привязки перестанут работать.
+        window._settings = this.getSettings();
+
+        const page = new Adw.PreferencesPage({
+            title: _('Оформление'),
+            icon_name: 'preferences-desktop-appearance-symbolic',
         });
+        window.add(page);
 
-        this.add(new Adw.SwitchRow({
-            title: _('Title'),
-            subtitle: _('Subtitle'),
-            active: true,
-        }));
-    }
-});
+        const group = new Adw.PreferencesGroup({
+            title: _('Окно ввода'),
+        });
+        page.add(group);
 
-export default class MyPreferences extends ExtensionPreferences {
-    getPreferencesWidget() {
-        return new MyPreferencesWidget();
+        const customStyle = new Adw.SwitchRow({
+            title: _('Собственное скругление и тень'),
+            subtitle: _('Выключено — как у системных диалогов'),
+        });
+        group.add(customStyle);
+        window._settings.bind('custom-dialog-style', customStyle, 'active',
+            Gio.SettingsBindFlags.DEFAULT);
     }
 }
-

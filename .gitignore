@@ -1,5 +1,8 @@
 # Локальная конфигурация Claude Code (содержит ключи API)
 .claude/settings.local.json
 
-# Логи devkit-сессии GNOME Shell
+# Логи, временные файлы, резервные копии и прочее.
 .tmp/
+*.bak
+.vscode/
+schemas/gschemas.compiled
