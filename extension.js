@@ -33,7 +33,7 @@ import * as Layout from 'resource:///org/gnome/shell/ui/layout.js';
  * через Myna (Ubuntu Speech-to-Text). Надиктованный текст попадает в буфер
  * обмена; минимум действий между «хочу сказать» и «текст вставлен».
  *
- * Требования v1 — см. REQUIREMENTS.md (US-1..US-6).
+ * Требования v1 — см. REQUIREMENTS.md (US-1..US-7).
  */
 export default class VoiceInputHelperExtension extends Extension {
     enable() {
@@ -45,7 +45,7 @@ export default class VoiceInputHelperExtension extends Extension {
         // (gnome-shell-icons.gresource) не содержит подходящей панельной иконки
         // для голосового ввода.
         this._icon = new St.Icon({
-            gicon: Gio.icon_new_for_string(`${this.path}/icons/voice-input-helper-icon.svg`),
+            gicon: Gio.icon_new_for_string(`${this.path}/icons/voice-input-helper-icon-symbolic.svg`),
             style_class: 'system-status-icon',
         });
         this._indicator.add_child(this._icon);
@@ -82,9 +82,13 @@ export default class VoiceInputHelperExtension extends Extension {
     }
 }
 
+// Минимальная высота поля ввода, в строках (US-7).
+const MIN_LINES = 4;
+
 /**
  * Модальное окно ввода: затемняющая подложка под панелью и центрированный
- * по монитору диалог с многострочным полем ввода (Clutter.Text) и кнопками.
+ * по монитору диалог с многострочным полем ввода (St.Entry) и кнопками.
+ * Оформление — от системной темы модальных диалогов Shell (US-7).
  *
  * Затемнение покрывает область под панелью (workArea); клик по подложке
  * закрывает окно (US-4), клик по панели — нет (панель доступна, US-1).
@@ -125,13 +129,18 @@ class VoiceInputModal extends St.Widget {
         this.add_child(this._bg);
 
         // Диалог: центрируется BinLayout-контейнером (natural size от
-        // содержимого), без растягивания на весь экран.
+        // содержимого), без растягивания на весь экран. Класс modal-dialog —
+        // фон, цвет текста и отступы системных диалогов темы (US-7).
         this._dialog = new St.Widget({
-            style_class: 'voice-input-modal-dialog',
+            style_class: 'modal-dialog voice-input-modal-dialog',
             layout_manager: new Clutter.BinLayout(),
             reactive: true,
             can_focus: true,
         });
+        // ВРЕМЕННО: A/B-сравнение оформления диалога (см. stylesheet.css).
+        // VHI_QA_DIALOG=system — системные скругление/тень, иначе свои.
+        if (GLib.getenv('VHI_QA_DIALOG') !== 'system')
+            this._dialog.add_style_class_name('voice-input-modal-dialog-custom');
         this._dialog.connect('key-press-event', (self, event) => {
             if (event.get_key_symbol() === Clutter.KEY_Escape)
                 return this._close();
@@ -154,45 +163,85 @@ class VoiceInputModal extends St.Widget {
         });
         this._box.add_child(this._titleLabel);
 
-        // Поле ввода — многострочное Clutter.Text (US-2):
+        // Поле ввода — St.Entry с многострочным Clutter.Text внутри (US-2).
+        // St.Entry — St-виджет: цвета текста, выделения, курсора и подсказки
+        // берёт из темы Shell и обновляет их при смене темы (US-7). Сам
+        // Clutter.Text CSS не понимает, поэтому нужна именно эта обёртка.
+        this._entry = new St.Entry({
+            style_class: 'voice-input-text',
+            hint_text: _('Говорите или печатайте…'),
+            x_expand: true,
+        });
+
         // editable + single_line_mode:false + line_wrap:WORD_CHAR дают
-        // автоперенос и перевод строки по Enter. Это «настоящее поле» для
-        // Myna: фокус через global.stage.set_key_focus ПОСЛЕ show() — иначе
-        // IBus-мост получит «commit REFUSED: focus lost».
-        this._text = new Clutter.Text({
+        // многострочность с автопереносом. activatable:false — St.Entry
+        // создаёт поле «активируемым», и Enter уходил бы в activate вместо
+        // перевода строки.
+        this._text = this._entry.clutter_text;
+        this._text.set({
             editable: true,
             selectable: true,
             single_line_mode: false,
+            activatable: false,
             line_wrap: true,
             line_wrap_mode: Pango.WrapMode.WORD_CHAR,
             cursor_visible: true,
             reactive: true,
-            x_expand: true,
         });
+
         this._text.connect('key-press-event', (self, event) => {
             const symbol = event.get_key_symbol();
-            const ctrl = (event.get_state() & Clutter.ModifierType.CONTROL_MASK) !== 0;
-            // Ctrl+Enter — копировать и закрыть (US-2/US-3);
-            // голый Enter уходит в поле (перевод строки в multi-line).
-            if (ctrl && (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter))
-                return this._copy(), Clutter.EVENT_STOP;
-            return Clutter.EVENT_PROPAGATE;
+            if (symbol !== Clutter.KEY_Return && symbol !== Clutter.KEY_KP_Enter &&
+                symbol !== Clutter.KEY_ISO_Enter)
+                return Clutter.EVENT_PROPAGATE;
+
+            // Ctrl+Enter — копировать и закрыть (US-2/US-3).
+            if (event.get_state() & Clutter.ModifierType.CONTROL_MASK) {
+                this._copy();
+                return Clutter.EVENT_STOP;
+            }
+
+            // Enter и Shift+Enter — перевод строки (US-2), явно: не зависим
+            // от того, как St.Entry/Clutter.Text обрабатывают Enter сами.
+            this._text.delete_selection();
+            this._text.insert_unichar('\n');
+            return Clutter.EVENT_STOP;
         });
-        this._box.add_child(this._text);
+        this._box.add_child(this._entry);
+
+        // Минимальная высота поля — несколько строк (US-7). Считается от
+        // шрифта темы, поэтому следует системному масштабу шрифта; пересчёт
+        // при каждой смене стиля (смена темы, масштаба).
+        this._entry.connect('style-changed', () => this._updateMinHeight());
 
         // QA-хук прототипа: длинный текст при первом открытии (автоперенос).
         // Активируется переменной VHI_QA_TEXT=1 при запуске devkit. Удалить в финале.
         this._qaTextApplied = false;
 
-        this._buttonBox = new St.BoxLayout({
-            style_class: 'voice-input-modal-buttons',
-            x_align: Clutter.ActorAlign.END,
+        // Ряд кнопок — как в системных диалогах Shell (ui/dialog.js): те же
+        // классы и раскладка, кнопки равной ширины на всю ширину диалога.
+        this._buttonBox = new St.Widget({
+            style_class: 'modal-dialog-button-box',
+            layout_manager: new Clutter.BoxLayout({
+                spacing: 12,
+                homogeneous: true,
+            }),
         });
         this._box.add_child(this._buttonBox);
 
         this._buttonBox.add_child(this._makeButton(_('Копировать'), () => this._copy()));
         this._buttonBox.add_child(this._makeButton(_('Очистить'), () => this._clear()));
         this._buttonBox.add_child(this._makeButton(_('Закрыть'), () => this._close()));
+
+        // ВРЕМЕННО: диагностика фокуса при диктовке Myna — удалить до коммита.
+        this._dbgFocusId = global.stage.connect('notify::key-focus', () => {
+            if (this.visible)
+                console.log(`[voice-input-helper] DBG key-focus → ${global.stage.get_key_focus()}`);
+        });
+        this._text.connect('insert-text', (self, text) => {
+            const focus = global.stage.get_key_focus();
+            console.log(`[voice-input-helper] DBG insert ${JSON.stringify(text)}, focus=${focus === this._text ? 'field' : focus}`);
+        });
 
         // Добавляемся на стадию один раз; показ/скрытие — через open()/close().
         Main.uiGroup.add_child(this);
@@ -201,9 +250,10 @@ class VoiceInputModal extends St.Widget {
 
     _makeButton(text, callback) {
         const btn = new St.Button({
-            style_class: 'button',
+            style_class: 'modal-dialog-button',
             label: text,
             can_focus: true,
+            x_expand: true,
         });
         btn.connect('clicked', callback);
         return btn;
@@ -256,6 +306,14 @@ class VoiceInputModal extends St.Widget {
         }
     }
 
+    _updateMinHeight() {
+        // Высота строки — из метрик шрифта темы в контексте самого поля.
+        const font = this._entry.get_theme_node().get_font();
+        const metrics = this._text.get_pango_context().get_metrics(font, null);
+        const lineHeight = (metrics.get_ascent() + metrics.get_descent()) / Pango.SCALE;
+        this._text.min_height = Math.ceil(lineHeight * MIN_LINES);
+    }
+
     _ensureFocus() {
         global.stage.set_key_focus(this._text);
     }
@@ -270,6 +328,7 @@ class VoiceInputModal extends St.Widget {
 
     destroy() {
         // Никакого grab — ничего снимать не нужно.
+        global.stage.disconnect(this._dbgFocusId); // ВРЕМЕННО: диагностика
         this._prevFocus = null;
         super.destroy();
     }

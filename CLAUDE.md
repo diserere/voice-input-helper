@@ -12,20 +12,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Текущее состояние
 
-Продукт пока определён только требованиями. Весь код — стандартный шаблон, сгенерированный утилитой `gnome-extensions create`:
+Выпущен MVP v0.1.0 (тег `v0.1.0`); в работе — v0.2 (оформление по системной теме, US-7).
 
-- [extension.js](extension.js) — панельный индикатор-пример, требований не реализует;
-- [prefs.js](prefs.js) — заготовка окна настроек на Adw;
-- [stylesheet.css](stylesheet.css) — пуст.
-
-ТЗ не реализовано — код предстоит написать.
+- [extension.js](extension.js) — индикатор на панели (собственная symbolic-иконка из `icons/`) и модальное окно ввода `VoiceInputModal`: поле `St.Entry` с многострочным `clutter_text`, кнопки в стиле системных диалогов;
+- [prefs.js](prefs.js) — заготовка окна настроек на Adw (не используется, см. бэклог v1.3);
+- [stylesheet.css](stylesheet.css) — только геометрия; цвета берутся из темы Shell (`.modal-dialog`, `StEntry`).
 
 ## Команды разработки
 
 Системы сборки, линтера и тестов в репозитории нет.
 
-- **Установка расширения**: `./install.sh` — создаёт симлинк `~/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com` → текущий каталог. Если цель уже существует, расширение не переустанавливает. Флаг `-l` выводит список установленных расширений.
+- **Установка расширения**: `./install.sh` — создаёт симлинк `~/.local/share/gnome-shell/extensions/voice-input-helper@diserere.github.com` → текущий каталог. Если цель уже существует, расширение не переустанавливает. Флаг `-l` выводит список установленных расширений, `-n` — имя (UUID) расширения.
 - **Запуск в изолированном окружении GNOME Shell** (devkit): `./run-gnome-shell-devkit.sh` — `dbus-run-session -- gnome-shell --devkit`. Полный лог пишется в `.tmp/devkit.log`, на экран выводятся только строки, совпадающие с `voice-input-helper|diserere\.github\.com|JS ERROR`. Сессия живёт до ручного завершения.
+- **Перезапуск расширения**: `./restart-extension.sh` (disable + enable; `-e` / `-d` / `-h`). В основной сессии перечитывает **только CSS** — JS-код кэшируется (ES-модули), для изменений JS нужен перелогин или devkit.
 - **QA-процесс и чек-лист**: см. [docs/qa/](docs/qa/) (`PROCESS.md` — как тестировать, `CHECKLIST.md` — чек-лист, `reports/` — отчёты). Строгий порядок: коммит = протестированный код + заполненный отчёт одним коммитом.
 
 ## Архитектура
@@ -35,9 +34,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [metadata.json](metadata.json) — `uuid` (определяет путь установки и адрес в логах), `shell-version: ["50"]`, имя и версия расширения.
 - [extension.js](extension.js) — точка входа: класс-наследник `Extension` с `enable()` / `disable()`; в `enable()` индикатор добавляется в панель через `Main.panel.addToStatusArea(this.uuid, …)`. По ТЗ клик по иконке должен сразу открывать окно ввода (без промежуточного меню), повторный клик — возвращать фокус существующему окну.
 - [prefs.js](prefs.js) — наследник `ExtensionPreferences`, виджеты на Adw (`Adw.PreferencesGroup`, `Adw.SwitchRow`).
-- [stylesheet.css](stylesheet.css) — кастомные стили (сейчас пуст).
+- [stylesheet.css](stylesheet.css) — геометрия окна; цвета не задаются (тема Shell).
 
-Реализация ТЗ потребует (ориентир, ещё не реализовано): многострочное редактируемое поле ввода (технический ориентир — `Clutter.Text` с автопереносом строк; `Enter` вставляет перевод строки, `Ctrl+Enter` — копирует и закрывает) с фокусом через `global.stage.set_key_focus` — критично для корректной работы Myna и Wayland input methods; модальное окно-контейнер, добавляемое в `Main.uiGroup` с затемнением **ниже панели** (чтобы клик по иконке возвращал фокус, а не закрывал окно как клик по фону); буфер обмена через `St.Clipboard`; системные уведомления через `Main.notify`. Окно остаётся открытым во время и после диктовки.
+Ключевые решения реализации: поле — `St.Entry` (тема даёт цвета текста/выделения/курсора), внутри многострочный `clutter_text` (`single_line_mode:false`, `activatable:false`, автоперенос); Enter/Shift+Enter вставляют перевод строки явно, `Ctrl+Enter` копирует и закрывает. Фокус — `global.stage.set_key_focus(clutter_text)` строго после `show()` (иначе Myna получает «focus lost»). Окно — в `Main.uiGroup` **без `pushModal`** (grab «глушил» панель), фокус предыдущего актора сохраняется и возвращается вручную; затемнение — подложка по `workArea` (ниже панели), клик по ней закрывает. Буфер — `St.Clipboard`, уведомления — `Main.notify`.
 
 ## Особенности окружения разработки
 

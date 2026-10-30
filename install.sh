@@ -5,10 +5,11 @@ EXTENSIONS_DIR="${HOME}/.local/share/gnome-shell/extensions"
 LINK_NAME="${EXTENSIONS_DIR}/${UUID}"
 
 show_usage() {
-    echo "Использование: ${0##*/} [-i] [-u] [-l] [-h]"
+    echo "Использование: ${0##*/} [-i] [-u] [-l] [-n] [-h]"
     echo "  -i           установить это расширение"
     echo "  -u           удалить (деинсталлировать) это расширение"
     echo "  -l           вывести список установленных расширений"
+    echo "  -n           вывести имя (UUID) расширения из metadata.json"
     echo "  -h           показать эту справку"
 }
 
@@ -40,6 +41,10 @@ ensure_extensions_dir() {
 case "$1" in
     -h|--help|"")
         show_usage
+        exit 0
+        ;;
+    -n|--name)
+        echo "${UUID}"
         exit 0
         ;;
     -l|--list|-i|--install|-u|--uninstall)
