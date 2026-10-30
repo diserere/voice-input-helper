@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Текущее состояние
 
-Выпущен MVP v0.1.0 (тег `v0.1.0`); в работе — v0.2 (оформление по системной теме, US-7).
+Выпущен v0.2.0 (тег `v0.2.0`): оформление по системной теме (US-7), редактирование текста и защита фокуса при диктовке (US-2), первые настройки. Предыдущий релиз — MVP v0.1.0.
 
 - [extension.js](extension.js) — индикатор на панели (собственная symbolic-иконка из `icons/`) и модальное окно ввода `VoiceInputModal`: поле `St.Entry` с многострочным `clutter_text`, кнопки в стиле системных диалогов;
 - [prefs.js](prefs.js) — окно настроек на Adw (`settings.bind` к ключам GSettings); схема — [schemas/](schemas/), компилируется `./install.sh -i` (`gschemas.compiled` в .gitignore);
@@ -42,7 +42,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Система: Ubuntu 26.04, GNOME Shell 50.1 / mutter 50.1. Devkit-сессия поднимается под Wayland с виртуальным монитором (Meta-0) и требует `dbus-run-session`.
 - **Myna в devkit-сессии недоступна** — проверить диктовку там нельзя. Проверка — на основной машине либо в виртуальной машине (см. REQUIREMENTS.md, «Открытые вопросы»).
-- README.md не было (создан в этой итерации); репозиторий `.git` инициализирован локальной командой. `./run-gnome-shell-devkit.sh` логирует в `.tmp/devkit.log` (в gitignore).
+- `./run-gnome-shell-devkit.sh` логирует в `.tmp/devkit.log` (в gitignore); в шапке скрипта — памятка, как искать логи расширения в основной сессии (`journalctl`).
+- **Взаимодействие с DING** (`ding@rastersoft.com`): на закрытие любого окна (в т.ч. индикатора Myna) DING активирует верхнее окно приложения и уводит фокус из полей Shell — в расширении есть защита фокуса (`_onKeyFocusChanged`, extension.js).
 
 ## Конвенции разработки (git)
 
